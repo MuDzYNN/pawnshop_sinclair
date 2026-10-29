@@ -1,0 +1,313 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+    provider = "prisma-client"
+    output   = "../app/generated/prisma"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model User {
+    id            String    @id
+    name          String
+    email         String    @unique
+    emailVerified Boolean   @default(false)
+    image         String?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+    sessions      Session[]
+    accounts      Account[]
+    employee      Employee?
+
+    @@map("user")
+}
+
+model Session {
+    id        String   @id
+    expiresAt DateTime
+    token     String   @unique
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    ipAddress String?
+    userAgent String?
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@map("session")
+}
+
+model Account {
+    id                    String    @id
+    accountId             String
+    providerId            String
+    userId                String
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
+
+    @@index([userId])
+    @@map("account")
+}
+
+model Verification {
+    id         String   @id
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@index([identifier])
+    @@map("verification")
+}
+
+enum Permission {
+    MANAGE_EMPLOYEES
+    MANAGE_RANKS
+    MANAGE_ITEMS
+    MANAGE_WEBHOOKS
+    VIEW_BUYBACKS
+    VIEW_LOGS
+    CREATE_BUYBACKS
+    MANAGE_ALIASES
+    MANAGE_IGNORED
+    CREATE_SALES
+    VIEW_SALES
+    SETTLE_SALES
+}
+
+model Rank {
+    id          String       @id @default(cuid())
+    name        String       @unique
+    // Lower value means higher rank
+    position    Int
+    permissions Permission[]
+    employees   Employee[]
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+
+    @@map("rank")
+}
+
+model Employee {
+    id        String     @id @default(cuid())
+    discordId String     @unique
+    name      String
+    rankId    String
+    rank      Rank       @relation(fields: [rankId], references: [id])
+    active    Boolean    @default(true)
+    userId    String?    @unique
+    user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+    buybacks  Buyback[]
+    sales     Sale[]     @relation("SaleEmployee")
+    settled   Sale[]     @relation("SaleSettledBy")
+    auditLogs AuditLog[]
+    createdAt DateTime   @default(now())
+    updatedAt DateTime   @updatedAt
+
+    @@index([rankId])
+    @@map("employee")
+}
+
+model Item {
+    id           String        @id @default(cuid())
+    name         String
+    // Tells apart items with the same in-game name
+    note         String        @default("")
+    // Order on the price list and in the buyback view
+    position     Int           @default(0)
+    // Prices in whole dollars
+    buyPrice     Int
+    sellPrice    Int
+    buybackLines BuybackLine[]
+    saleLines    SaleLine[]
+    aliases      ItemAlias[]
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @updatedAt
+
+    @@unique([name, note])
+    @@index([position])
+    @@map("item")
+}
+
+// Inventory name counted as the given item, e.g. "Andrew Johnson" as a presidential coin
+model ItemAlias {
+    id        String   @id @default(cuid())
+    name      String   @unique
+    itemId    String
+    item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+
+    @@index([itemId])
+    @@map("item_alias")
+}
+
+// Inventory name dropped from the import without being bought
+model IgnoredItem {
+    id        String   @id @default(cuid())
+    name      String   @unique
+    createdAt DateTime @default(now())
+
+    @@map("ignored_item")
+}
+
+model Buyback {
+    id           String        @id @default(cuid())
+    number       String        @unique
+    employeeId   String
+    employee     Employee      @relation(fields: [employeeId], references: [id])
+    // Prices in whole dollars, bonusPercent in percent
+    bonusPercent Float
+    bonusAmount  Int           @default(0)
+    subtotal     Int
+    bonus        Int
+    payout       Int
+    saleValue    Int
+    profit       Int
+    lines        BuybackLine[]
+    createdAt    DateTime      @default(now())
+
+    @@index([employeeId])
+    @@index([createdAt])
+    @@index([payout])
+    @@index([profit])
+    @@map("buyback")
+}
+
+model BuybackLine {
+    id        String  @id @default(cuid())
+    buybackId String
+    buyback   Buyback @relation(fields: [buybackId], references: [id], onDelete: Cascade)
+    itemId    String?
+    item      Item?   @relation(fields: [itemId], references: [id], onDelete: SetNull)
+    // Item name and prices as of the buyback
+    name      String
+    note      String  @default("")
+    quantity  Int
+    buyPrice  Int
+    sellPrice Int
+
+    @@index([buybackId])
+    @@index([itemId])
+    @@map("buyback_line")
+}
+
+enum SaleStatus {
+    PENDING
+    SETTLED
+}
+
+// Items from the storage sold to PostOP
+model Sale {
+    id          String     @id @default(cuid())
+    number      String     @unique
+    employeeId  String
+    employee    Employee   @relation("SaleEmployee", fields: [employeeId], references: [id])
+    // Sum of sell prices in whole dollars
+    value       Int
+    status      SaleStatus @default(PENDING)
+    // Who marked it as settled with PostOP
+    settledById String?
+    settledBy   Employee?  @relation("SaleSettledBy", fields: [settledById], references: [id], onDelete: SetNull)
+    settledAt   DateTime?
+    lines       SaleLine[]
+    createdAt   DateTime   @default(now())
+
+    @@index([employeeId])
+    @@index([createdAt])
+    @@index([status])
+    @@index([value])
+    @@map("sale")
+}
+
+model SaleLine {
+    id        String  @id @default(cuid())
+    saleId    String
+    sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+    itemId    String?
+    item      Item?   @relation(fields: [itemId], references: [id], onDelete: SetNull)
+    // Item name and price as of the sale
+    name      String
+    note      String  @default("")
+    quantity  Int
+    sellPrice Int
+
+    @@index([saleId])
+    @@index([itemId])
+    @@map("sale_line")
+}
+
+enum WebhookEvent {
+    CONTACT
+    BUYBACK
+}
+
+model Webhook {
+    event     WebhookEvent @id
+    url       String
+    enabled   Boolean      @default(true)
+    updatedAt DateTime     @updatedAt
+
+    @@map("webhook")
+}
+
+enum AuditAction {
+    ITEM_CREATED
+    ITEM_UPDATED
+    ITEM_MOVED
+    ITEM_DELETED
+    ALIAS_CREATED
+    ALIAS_DELETED
+    IGNORED_CREATED
+    IGNORED_DELETED
+    EMPLOYEE_CREATED
+    EMPLOYEE_UPDATED
+    EMPLOYEE_ACTIVATED
+    EMPLOYEE_DEACTIVATED
+    RANK_CREATED
+    RANK_UPDATED
+    RANK_MOVED
+    RANK_DELETED
+    WEBHOOK_UPDATED
+    WEBHOOK_DELETED
+    WEBHOOK_TESTED
+    BUYBACK_COMPLETED
+    SALE_COMPLETED
+    SALE_SETTLED
+    SALE_REOPENED
+    LOGIN
+    LOGIN_DENIED
+}
+
+model AuditLog {
+    id         String      @id @default(cuid())
+    // Empty for scripts and denied logins, actorName keeps who it was
+    employeeId String?
+    employee   Employee?   @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+    actorName  String
+    action     AuditAction
+    // Name of the changed record at that moment
+    target     String
+    targetId   String?
+    // { field: [before, after] }
+    changes    Json?
+    createdAt  DateTime    @default(now())
+
+    @@index([createdAt])
+    @@index([employeeId])
+    @@index([action])
+    @@map("audit_log")
+}

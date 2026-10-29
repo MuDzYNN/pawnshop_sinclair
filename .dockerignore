@@ -1,0 +1,13 @@
+.git
+.github
+.next
+node_modules
+app/generated
+.env*
+*.tsbuildinfo
+next-env.d.ts
+.agents
+.claude
+.windsurf
+Dockerfile
+docker-compose.yml

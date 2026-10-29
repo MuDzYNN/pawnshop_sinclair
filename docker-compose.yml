@@ -1,0 +1,107 @@
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  logging:
+    options:
+      max-size: 10m
+      max-file: "3"
+
+x-database-url: &database-url postgresql://pawnshop:${POSTGRES_PASSWORD}@db:5432/pawnshop
+
+services:
+  app:
+    <<: *hardening
+    image: ${IMAGE:?set IMAGE in .env}:${TAG:-latest}
+    environment:
+      DATABASE_URL: *database-url
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?}
+    tmpfs:
+      - /tmp
+      - /app/.next/cache:uid=1000,gid=1000
+    networks: [web, db]
+    depends_on:
+      tools:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/auth/ok"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+
+  tunnel:
+    <<: *hardening
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env}
+    networks: [web]
+    depends_on: [app]
+
+  # Runs migrations on every up, also used for pnpm scripts via docker compose run
+  tools:
+    <<: *hardening
+    restart: "no"
+    image: ${IMAGE}-tools:${TAG:-latest}
+    environment:
+      DATABASE_URL: *database-url
+    tmpfs: [/tmp]
+    networks: [db]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backup:
+    <<: *hardening
+    image: ${IMAGE}-backup:${TAG:-latest}
+    environment:
+      PGHOST: db
+      PGUSER: pawnshop
+      PGDATABASE: pawnshop
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      AGE_RECIPIENT: ${AGE_RECIPIENT:?set AGE_RECIPIENT in .env}
+      R2_BUCKET: ${R2_BUCKET:?set R2_BUCKET in .env}
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ENDPOINT: ${R2_ENDPOINT:?}
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:?}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:?}
+    tmpfs: [/tmp]
+    volumes:
+      - backups:/backups
+    networks: [web, db]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    <<: *hardening
+    image: postgres:18-alpine
+    cap_drop: []
+    environment:
+      POSTGRES_USER: pawnshop
+      POSTGRES_DB: pawnshop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    tmpfs: [/tmp, /run/postgresql]
+    volumes:
+      - db:/var/lib/postgresql
+    networks: [db]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "pawnshop", "-d", "pawnshop"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  web:
+  # No internet access, only app, tools and backup reach the db
+  db:
+    internal: true
+
+volumes:
+  db:
+  backups:
