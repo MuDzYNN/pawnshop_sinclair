@@ -41,6 +41,12 @@ export const permissions: {
 			"Dodawanie, edycja, kolejność i usuwanie przedmiotów w cenniku skupu",
 	},
 	{
+		value: "VIEW_RESTRICTED_ITEMS",
+		label: "Zakazane przedmioty",
+		description:
+			"Widoczność zakazanych przedmiotów w cenniku, skupie i sprzedaży",
+	},
+	{
 		value: "MANAGE_ALIASES",
 		label: "Aliasy",
 		description:
@@ -81,6 +87,13 @@ type Actor = { rank: { position: number; permissions: Permission[] } };
 
 export function hasPermission(actor: Actor, permission: Permission) {
 	return actor.rank.permissions.includes(permission);
+}
+
+// Item filter that hides restricted items from employees without the permission
+export function visibleItems(actor: Actor): { restricted?: boolean } {
+	return hasPermission(actor, "VIEW_RESTRICTED_ITEMS")
+		? {}
+		: { restricted: false };
 }
 
 // Rank managers have full access, others only to lower ranks

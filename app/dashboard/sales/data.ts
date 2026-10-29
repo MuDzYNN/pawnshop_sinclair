@@ -21,10 +21,8 @@ const filtersSchema = z.object({
 
 export type SalesData = Awaited<ReturnType<typeof getSalesData>>;
 
-export async function getSalesData(
-	actor: CurrentEmployee,
-	params: URLSearchParams,
-) {
+// Shared by the list and the CSV export
+export function salesQuery(actor: CurrentEmployee, params: URLSearchParams) {
 	const filters = filtersSchema.parse(Object.fromEntries(params));
 	const where: Prisma.SaleWhereInput = {
 		// Without the permission an employee only sees their own sales
@@ -55,13 +53,23 @@ export async function getSalesData(
 			],
 		}),
 	};
-
 	const shown = { ...where, status: filters.status };
+	const orderBy: Prisma.SaleOrderByWithRelationInput[] = [
+		{ [filters.sort]: filters.order },
+		{ createdAt: "desc" },
+	];
+	return { filters, where, shown, orderBy };
+}
 
+export async function getSalesData(
+	actor: CurrentEmployee,
+	params: URLSearchParams,
+) {
+	const { filters, where, shown, orderBy } = salesQuery(actor, params);
 	const [sales, total, sums, pending] = await Promise.all([
 		prisma.sale.findMany({
 			where: shown,
-			orderBy: [{ [filters.sort]: filters.order }, { createdAt: "desc" }],
+			orderBy,
 			skip: (filters.page - 1) * PAGE_SIZE,
 			take: PAGE_SIZE,
 			select: {

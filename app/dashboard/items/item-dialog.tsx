@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { mutate } from "swr";
 import { saveItem, type FormState } from "@/app/dashboard/items/actions";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogClose,
@@ -16,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import {
 	Field,
+	FieldContent,
+	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
@@ -30,15 +33,17 @@ type Item = {
 	note: string;
 	buyPrice: number;
 	sellPrice: number;
+	restricted: boolean;
 };
 
 type Props = {
 	item: Item;
+	canRestrict: boolean;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 };
 
-export function ItemDialog({ item, open, onOpenChange }: Props) {
+export function ItemDialog({ item, canRestrict, open, onOpenChange }: Props) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-md">
@@ -48,13 +53,25 @@ export function ItemDialog({ item, open, onOpenChange }: Props) {
 						Ceny w pełnych dolarach.
 					</DialogDescription>
 				</DialogHeader>
-				<ItemForm item={item} onSaved={() => onOpenChange(false)} />
+				<ItemForm
+					item={item}
+					canRestrict={canRestrict}
+					onSaved={() => onOpenChange(false)}
+				/>
 			</DialogContent>
 		</Dialog>
 	);
 }
 
-function ItemForm({ item, onSaved }: { item: Item; onSaved: () => void }) {
+function ItemForm({
+	item,
+	canRestrict,
+	onSaved,
+}: {
+	item: Item;
+	canRestrict: boolean;
+	onSaved: () => void;
+}) {
 	const [state, action, pending] = useActionState(
 		async (prev: FormState, formData: FormData) => {
 			const result = await saveItem(prev, formData);
@@ -148,6 +165,25 @@ function ItemForm({ item, onSaved }: { item: Item; onSaved: () => void }) {
 						</FieldError>
 					</Field>
 				</div>
+				{canRestrict && (
+					<Field orientation="horizontal">
+						<Checkbox
+							id="restricted"
+							name="restricted"
+							value="true"
+							defaultChecked={item.restricted}
+						/>
+						<FieldContent>
+							<FieldLabel htmlFor="restricted">
+								Zakazany przedmiot
+							</FieldLabel>
+							<FieldDescription>
+								Widoczny tylko dla rang z uprawnieniem do
+								zakazanych przedmiotów
+							</FieldDescription>
+						</FieldContent>
+					</Field>
+				)}
 			</FieldGroup>
 			{state.error && (
 				<p className="text-sm text-destructive">

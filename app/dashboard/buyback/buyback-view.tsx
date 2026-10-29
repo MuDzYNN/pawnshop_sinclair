@@ -14,7 +14,8 @@ export function BuybackView({ fallback }: { fallback: ItemsData }) {
 	const { data = fallback } = useSWR<ItemsData>(keys.items, {
 		fallbackData: fallback,
 	});
-	const { quantities, setQuantity, addQuantities, clear } = useQuantities();
+	const { quantities, setQuantity, addQuantities, cleared, clear } =
+		useQuantities();
 
 	// Items removed from the price list drop out of the transaction
 	const lines: Line[] = data.items
@@ -44,7 +45,11 @@ export function BuybackView({ fallback }: { fallback: ItemsData }) {
 					onRemove={(id) => setQuantity(id, 0)}
 					onClear={clear}
 				/>
-				<InventoryImport data={data} onImport={addQuantities} />
+				<InventoryImport
+					key={cleared}
+					data={data}
+					onImport={addQuantities}
+				/>
 			</div>
 		</div>
 	);

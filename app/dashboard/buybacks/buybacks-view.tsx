@@ -17,6 +17,7 @@ import { BuybackDetails } from "@/app/dashboard/buybacks/buyback-details";
 import type { BuybacksData } from "@/app/dashboard/buybacks/data";
 import { DateRangeFilter } from "@/app/dashboard/buybacks/date-range-filter";
 import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/dashboard/export-menu";
 import {
 	Card,
 	CardDescription,
@@ -192,6 +193,13 @@ export function BuybacksView({
 						Wyczyść filtry
 					</Button>
 				)}
+				<ExportMenu
+					href={(format) => {
+						const params = new URLSearchParams(searchParams);
+						params.set("format", format);
+						return `${keys.buybacks}/export?${params}`;
+					}}
+				/>
 			</div>
 			<div className="overflow-hidden rounded-lg border">
 				<Table>

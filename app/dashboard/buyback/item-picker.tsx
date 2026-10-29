@@ -27,6 +27,8 @@ const MAX_QUANTITY = 9999;
 // Quantities by item id, items without a quantity are left out
 export function useQuantities() {
 	const [quantities, setQuantities] = useState<Record<string, number>>({});
+	// Bumped on clear, a new transaction starts with an empty import
+	const [cleared, setCleared] = useState(0);
 
 	function setQuantity(id: string, quantity: number) {
 		const value = Math.min(
@@ -50,7 +52,11 @@ export function useQuantities() {
 		quantities,
 		setQuantity,
 		addQuantities,
-		clear: () => setQuantities({}),
+		cleared,
+		clear: () => {
+			setQuantities({});
+			setCleared((count) => count + 1);
+		},
 	};
 }
 

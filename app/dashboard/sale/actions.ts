@@ -5,7 +5,7 @@ import { transactionNumber } from "@/app/dashboard/buyback/number";
 import { calculateTotals } from "@/app/dashboard/buyback/totals";
 import { audit } from "@/lib/audit";
 import type { ErrorCode } from "@/lib/errors";
-import { hasPermission } from "@/lib/permissions";
+import { hasPermission, visibleItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEmployee } from "@/lib/session";
 
@@ -38,7 +38,10 @@ export async function completeSale(input: SaleInput): Promise<SaleState> {
 	if (!parsed.success) return { error: "SALE_INVALID" };
 
 	const items = await prisma.item.findMany({
-		where: { id: { in: parsed.data.lines.map((line) => line.itemId) } },
+		where: {
+			id: { in: parsed.data.lines.map((line) => line.itemId) },
+			...visibleItems(employee),
+		},
 	});
 	const lines = parsed.data.lines.flatMap(({ itemId, quantity }) => {
 		const item = items.find((item) => item.id === itemId);

@@ -19,10 +19,8 @@ const filtersSchema = z.object({
 
 export type BuybacksData = Awaited<ReturnType<typeof getBuybacksData>>;
 
-export async function getBuybacksData(
-	actor: CurrentEmployee,
-	params: URLSearchParams,
-) {
+// Shared by the list and the CSV export
+export function buybacksQuery(actor: CurrentEmployee, params: URLSearchParams) {
 	const filters = filtersSchema.parse(Object.fromEntries(params));
 	const where: Prisma.BuybackWhereInput = {
 		// Without the permission an employee only sees their own buybacks
@@ -53,11 +51,22 @@ export async function getBuybacksData(
 			],
 		}),
 	};
+	const orderBy: Prisma.BuybackOrderByWithRelationInput[] = [
+		{ [filters.sort]: filters.order },
+		{ createdAt: "desc" },
+	];
+	return { filters, where, orderBy };
+}
 
+export async function getBuybacksData(
+	actor: CurrentEmployee,
+	params: URLSearchParams,
+) {
+	const { filters, where, orderBy } = buybacksQuery(actor, params);
 	const [buybacks, total, sums] = await Promise.all([
 		prisma.buyback.findMany({
 			where,
-			orderBy: [{ [filters.sort]: filters.order }, { createdAt: "desc" }],
+			orderBy,
 			skip: (filters.page - 1) * PAGE_SIZE,
 			take: PAGE_SIZE,
 			select: {

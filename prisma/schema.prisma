@@ -87,6 +87,7 @@ enum Permission {
     CREATE_SALES
     VIEW_SALES
     SETTLE_SALES
+    VIEW_RESTRICTED_ITEMS
 }
 
 model Rank {
@@ -132,6 +133,8 @@ model Item {
     // Prices in whole dollars
     buyPrice     Int
     sellPrice    Int
+    // Hidden from employees without VIEW_RESTRICTED_ITEMS
+    restricted   Boolean       @default(false)
     buybackLines BuybackLine[]
     saleLines    SaleLine[]
     aliases      ItemAlias[]

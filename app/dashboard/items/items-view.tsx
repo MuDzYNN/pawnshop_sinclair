@@ -25,6 +25,7 @@ export function ItemsView({ fallback }: { fallback: ItemsData }) {
 				{data.canManage && (
 					<AddItemsDialog
 						existing={data.items}
+						canRestrict={data.canViewRestricted}
 						trigger={
 							<Button>
 								<PlusIcon />

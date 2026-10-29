@@ -37,7 +37,8 @@ export function SaleView({ fallback }: { fallback: ItemsData }) {
 	const { data = fallback } = useSWR<ItemsData>(keys.items, {
 		fallbackData: fallback,
 	});
-	const { quantities, setQuantity, addQuantities, clear } = useQuantities();
+	const { quantities, setQuantity, addQuantities, cleared, clear } =
+		useQuantities();
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const [pending, startTransition] = useTransition();
 
@@ -203,7 +204,11 @@ export function SaleView({ fallback }: { fallback: ItemsData }) {
 						</AlertDialogFooter>
 					</AlertDialogContent>
 				</AlertDialog>
-				<InventoryImport data={data} onImport={addQuantities} />
+				<InventoryImport
+					key={cleared}
+					data={data}
+					onImport={addQuantities}
+				/>
 			</div>
 		</div>
 	);

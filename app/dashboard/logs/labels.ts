@@ -77,6 +77,7 @@ const fieldLabels: Record<string, string> = {
 	buyPrice: "Cena skupu",
 	sellPrice: "Cena sprzedaży",
 	position: "Pozycja",
+	restricted: "Zakazany",
 	aliases: "Aliasy",
 	item: "Przedmiot",
 	discordId: "Discord ID",

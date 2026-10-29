@@ -5,7 +5,7 @@ import { transactionNumber, warsawParts } from "@/app/dashboard/buyback/number";
 import { calculateTotals, formatBonus } from "@/app/dashboard/buyback/totals";
 import { audit } from "@/lib/audit";
 import type { ErrorCode } from "@/lib/errors";
-import { hasPermission } from "@/lib/permissions";
+import { hasPermission, visibleItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEmployee } from "@/lib/session";
 import { sendWebhook } from "@/lib/webhooks";
@@ -53,7 +53,10 @@ export async function completeBuyback(
 	const { bonus } = parsed.data;
 
 	const items = await prisma.item.findMany({
-		where: { id: { in: parsed.data.lines.map((line) => line.itemId) } },
+		where: {
+			id: { in: parsed.data.lines.map((line) => line.itemId) },
+			...visibleItems(employee),
+		},
 	});
 	const lines = parsed.data.lines.flatMap(({ itemId, quantity }) => {
 		const item = items.find((item) => item.id === itemId);

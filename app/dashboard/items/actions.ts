@@ -6,7 +6,8 @@ import { Prisma } from "@/app/generated/prisma/client";
 import { audit, diff } from "@/lib/audit";
 import type { ErrorCode } from "@/lib/errors";
 import { itemLabel } from "@/lib/format";
-import { hasPermission } from "@/lib/permissions";
+import { withOrder } from "@/app/dashboard/items/order";
+import { hasPermission, visibleItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEmployee } from "@/lib/session";
 
@@ -28,7 +29,13 @@ export type BulkState = {
 	updated?: number;
 };
 
-const ITEM_FIELDS: ItemField[] = ["name", "note", "buyPrice", "sellPrice"];
+const ITEM_FIELDS: (ItemField | "restricted")[] = [
+	"name",
+	"note",
+	"buyPrice",
+	"sellPrice",
+	"restricted",
+];
 
 // Empty input is a missing price, not 0
 const price = z.preprocess(
@@ -51,7 +58,11 @@ const itemFields = z.object({
 	sellPrice: price,
 });
 
-const itemSchema = itemFields.extend({ id: z.string().optional() });
+const itemSchema = itemFields.extend({
+	id: z.string().optional(),
+	// Unchecked checkbox is missing from the form
+	restricted: z.stringbool().default(false),
+});
 
 const itemsSchema = z
 	.array(itemFields)
@@ -78,9 +89,16 @@ export async function saveItem(
 				(issue) => issue.message as ErrorCode,
 			).fieldErrors,
 		};
-	const { id, ...data } = parsed.data;
+	const { id, restricted, ...fields } = parsed.data;
+	// Only employees who see restricted items can change the flag
+	const data = hasPermission(actor, "VIEW_RESTRICTED_ITEMS")
+		? { ...fields, restricted }
+		: fields;
 
-	const before = id ? await prisma.item.findUnique({ where: { id } }) : null;
+	const before = id
+		? await prisma.item.findFirst({ where: { id, ...visibleItems(actor) } })
+		: null;
+	if (id && !before) return { error: "ITEMS_FORBIDDEN" };
 	try {
 		const item = id
 			? await prisma.item.update({ where: { id }, data })
@@ -113,7 +131,10 @@ export async function saveItem(
 }
 
 // Adds new items and updates prices of those already on the list, matched by name and note
-export async function saveItems(rows: ItemInput[]): Promise<BulkState> {
+export async function saveItems(
+	rows: ItemInput[],
+	restricted: boolean,
+): Promise<BulkState> {
 	const actor = await authorize();
 	if (!actor) return { error: "ITEMS_FORBIDDEN" };
 
@@ -133,17 +154,30 @@ export async function saveItems(rows: ItemInput[]): Promise<BulkState> {
 			(rowErrors[index] ??= {}).name ??= "ITEM_NAME_DUPLICATE";
 	});
 	if (!parsed.success || rowErrors.length) return { rowErrors };
+	const seesRestricted = hasPermission(actor, "VIEW_RESTRICTED_ITEMS");
+	if (restricted && !seesRestricted) return { error: "ITEMS_FORBIDDEN" };
 
 	const existing = await prisma.item.findMany({
 		where: { OR: parsed.data.map(({ name, note }) => ({ name, note })) },
 	});
+	// Hidden items can't be overwritten by name
+	const hidden = new Set(
+		existing
+			.filter((item) => item.restricted && !seesRestricted)
+			.map((item) => `${item.name}\n${item.note}`),
+	);
+	keys.forEach((key, index) => {
+		if (hidden.has(key)) (rowErrors[index] ??= {}).name = "ITEM_NAME_TAKEN";
+	});
+	if (rowErrors.length) return { rowErrors };
+
 	// New items go to the end of the list in the order they were entered
 	const position = await nextPosition();
 	const saved = await prisma.$transaction(
 		parsed.data.map((item, index) =>
 			prisma.item.upsert({
 				where: { name_note: { name: item.name, note: item.note } },
-				create: { ...item, position: position + index },
+				create: { ...item, restricted, position: position + index },
 				update: item,
 			}),
 		),
@@ -180,15 +214,20 @@ export async function reorderItems(ids: string[]): Promise<FormState> {
 	if (!z.array(z.string()).safeParse(ids).success)
 		return { error: "INVALID_REQUEST" };
 
-	// Items missing from the list, e.g. added meanwhile, stay after the reordered ones
+	// Items missing from the list, e.g. added meanwhile or hidden, keep their places
 	const items = await prisma.item.findMany({
 		orderBy: [{ position: "asc" }, { name: "asc" }],
 	});
-	const known = new Set(items.map((item) => item.id));
-	const order = [
-		...ids.filter((id) => known.has(id)),
-		...items.map((item) => item.id).filter((id) => !ids.includes(id)),
-	];
+	const seesRestricted = hasPermission(actor, "VIEW_RESTRICTED_ITEMS");
+	const visible = new Set(
+		items
+			.filter((item) => seesRestricted || !item.restricted)
+			.map((item) => item.id),
+	);
+	const order = withOrder(
+		items,
+		ids.filter((id) => visible.has(id)),
+	).map((item) => item.id);
 	await prisma.$transaction(
 		order.map((id, position) =>
 			prisma.item.update({ where: { id }, data: { position } }),
@@ -224,10 +263,12 @@ export async function deleteItems(ids: string[]): Promise<FormState> {
 		return { error: "INVALID_REQUEST" };
 
 	const items = await prisma.item.findMany({
-		where: { id: { in: ids } },
+		where: { id: { in: ids }, ...visibleItems(actor) },
 		include: { aliases: true },
 	});
-	await prisma.item.deleteMany({ where: { id: { in: ids } } });
+	await prisma.item.deleteMany({
+		where: { id: { in: items.map((item) => item.id) } },
+	});
 	await audit(
 		actor,
 		items.map((item) => ({

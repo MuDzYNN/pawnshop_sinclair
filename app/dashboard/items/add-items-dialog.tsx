@@ -18,6 +18,7 @@ import {
 } from "@/app/dashboard/items/actions";
 import { parseItems, readCsv } from "@/app/dashboard/items/csv";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogClose,
@@ -52,10 +53,12 @@ ${item.note.trim()}`;
 type Props = {
 	trigger: ReactElement;
 	existing: { name: string; note: string }[];
+	canRestrict: boolean;
 };
 
-export function AddItemsDialog({ trigger, existing }: Props) {
+export function AddItemsDialog({ trigger, existing, canRestrict }: Props) {
 	const [open, setOpen] = useState(false);
+	const [restricted, setRestricted] = useState(false);
 	const [rows, setRows] = useState<Row[]>(() => [emptyRow()]);
 	const [error, setError] = useState<BulkState["error"]>();
 	const [pending, startTransition] = useTransition();
@@ -120,6 +123,7 @@ export function AddItemsDialog({ trigger, existing }: Props) {
 					buyPrice,
 					sellPrice,
 				})),
+				restricted,
 			);
 			if (result.ok) {
 				const parts = [
@@ -292,6 +296,15 @@ export function AddItemsDialog({ trigger, existing }: Props) {
 							hidden
 							onChange={importFile}
 						/>
+						{canRestrict && (
+							<label className="ml-auto flex items-center gap-2 text-sm">
+								<Checkbox
+									checked={restricted}
+									onCheckedChange={setRestricted}
+								/>
+								Nowe jako zakazane
+							</label>
+						)}
 					</div>
 				</div>
 				{error && (

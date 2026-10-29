@@ -15,6 +15,7 @@ import type { SalesData } from "@/app/dashboard/sales/data";
 import { SaleDetails } from "@/app/dashboard/sales/sale-details";
 import { SaleStatus, statusLabels } from "@/app/dashboard/sales/sale-status";
 import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/dashboard/export-menu";
 import {
 	InputGroup,
 	InputGroupAddon,
@@ -219,6 +220,13 @@ export function SalesView({
 						Wyczyść filtry
 					</Button>
 				)}
+				<ExportMenu
+					href={(format) => {
+						const params = new URLSearchParams(searchParams);
+						params.set("format", format);
+						return `${keys.sales}/export?${params}`;
+					}}
+				/>
 			</div>
 			<div className="overflow-hidden rounded-lg border">
 				<Table>

@@ -6,7 +6,7 @@ import { namesSchema } from "@/app/dashboard/aliases/names";
 import { audit } from "@/lib/audit";
 import type { ErrorCode } from "@/lib/errors";
 import { itemLabel } from "@/lib/format";
-import { hasPermission } from "@/lib/permissions";
+import { hasPermission, visibleItems } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEmployee } from "@/lib/session";
 
@@ -53,7 +53,9 @@ export async function addAliases(input: {
 			error: "ALIAS_TAKEN",
 			taken: taken.map((alias) => alias.name),
 		};
-	const item = await prisma.item.findUnique({ where: { id: itemId } });
+	const item = await prisma.item.findFirst({
+		where: { id: itemId, ...visibleItems(actor) },
+	});
 	if (!item) return { error: "ALIAS_ITEM_REQUIRED" };
 
 	const aliases = await prisma.itemAlias.createManyAndReturn({

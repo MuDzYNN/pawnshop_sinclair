@@ -24,6 +24,7 @@ import {
 	GripVerticalIcon,
 	PencilIcon,
 	SearchIcon,
+	ShieldAlertIcon,
 	TagsIcon,
 	Trash2Icon,
 	XIcon,
@@ -76,15 +77,7 @@ import { errorMessages, type ErrorCode } from "@/lib/errors";
 import { formatDate, formatDateTime, formatPrice } from "@/lib/format";
 import { keys } from "@/lib/swr";
 
-type Item = {
-	id: string;
-	name: string;
-	note: string;
-	buyPrice: number;
-	sellPrice: number;
-	createdAt: string;
-	updatedAt: string;
-};
+type Item = ItemsData["items"][number];
 
 export function ItemsTable({ data }: { data: ItemsData }) {
 	const { items, canManage } = data;
@@ -312,6 +305,14 @@ export function ItemsTable({ data }: { data: ItemsData }) {
 											</TableCell>
 										)}
 										<TableCell className="font-medium">
+											{item.restricted && (
+												<ShieldAlertIcon
+													aria-label="Zakazany przedmiot"
+													className="mr-1.5 -mt-0.5 inline size-4 text-destructive"
+												>
+													<title>Zakazany przedmiot</title>
+												</ShieldAlertIcon>
+											)}
 											{item.name}
 											{item.note && (
 												<span className="ml-2 text-xs font-normal text-muted-foreground">
@@ -409,6 +410,7 @@ export function ItemsTable({ data }: { data: ItemsData }) {
 				<ItemDialog
 					key={editing.id}
 					item={editing}
+					canRestrict={data.canViewRestricted}
 					open
 					onOpenChange={(open) => !open && setEditing(null)}
 				/>
