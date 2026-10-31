@@ -7,7 +7,10 @@
         "build": "next build",
         "start": "next start",
         "lint": "eslint",
-        "employee:add": "tsx scripts/add-employee.mts"
+        "employee:add": "tsx scripts/add-employee.mts",
+        "prisma:generate": "NODE_OPTIONS=--experimental-require-module prisma generate",
+        "prisma:migrate": "NODE_OPTIONS=--experimental-require-module prisma migrate deploy",
+        "prisma:migrate:dev": "NODE_OPTIONS=--experimental-require-module prisma migrate dev"
     },
     "dependencies": {
         "@base-ui/react": "^1.9.0",
@@ -16,7 +19,7 @@
         "@dnd-kit/sortable": "^10.0.0",
         "@dnd-kit/utilities": "^3.2.2",
         "@prisma/adapter-pg": "^7.10.1",
-        "@prisma/client": "7",
+        "@prisma/client": "^7.10.1",
         "better-auth": "^1.7.14",
         "class-variance-authority": "^0.7.1",
         "cn": "^0.5.0",
@@ -48,7 +51,7 @@
         "babel-plugin-react-compiler": "1.0.0",
         "eslint": "^9",
         "eslint-config-next": "16.4.3",
-        "prisma": "^7.10.1",
+        "prisma": "7.10.1",
         "tailwindcss": "^4",
         "tsx": "^4.23.15",
         "typescript": "^5"

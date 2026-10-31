@@ -1,0 +1,6 @@
+-- AlterEnum
+ALTER TYPE "Permission" ADD VALUE 'MANAGE_SALES';
+
+-- AlterEnum
+ALTER TYPE "AuditAction" ADD VALUE 'SALE_UPDATED';
+ALTER TYPE "AuditAction" ADD VALUE 'SALE_DELETED';

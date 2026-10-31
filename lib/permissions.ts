@@ -35,6 +35,12 @@ export const permissions: {
 			"Oznaczanie sprzedaży jako przyjętej i rozliczonej przez PostOP",
 	},
 	{
+		value: "MANAGE_SALES",
+		label: "Edycja sprzedaży",
+		description:
+			"Zmiana przedmiotów w sprzedażach PostOP i ich całkowite usuwanie",
+	},
+	{
 		value: "MANAGE_ITEMS",
 		label: "Zarządzanie cennikiem",
 		description:

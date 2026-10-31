@@ -49,6 +49,9 @@ export const errorMessages = {
 	SALE_INVALID: "Nieprawidłowa sprzedaż, sprawdź ilości",
 	SALE_NOT_FOUND: "Nie znaleziono sprzedaży",
 	SETTLE_FORBIDDEN: "Brak uprawnień do rozliczania sprzedaży",
+	SALE_MANAGE_FORBIDDEN: "Brak uprawnień do edycji i usuwania sprzedaży",
+	SALE_SETTLED_LOCKED:
+		"Rozliczonej sprzedaży nie można edytować, najpierw cofnij rozliczenie",
 
 	WEBHOOKS_FORBIDDEN: "Brak uprawnień do zarządzania webhookami",
 	WEBHOOK_URL_INVALID:

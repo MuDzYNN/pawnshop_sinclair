@@ -84,6 +84,7 @@ export async function getSalesData(
 				lines: {
 					select: {
 						id: true,
+						itemId: true,
 						name: true,
 						note: true,
 						quantity: true,
@@ -116,5 +117,6 @@ export async function getSalesData(
 			pendingCount: pending._count,
 		},
 		canSettle: hasPermission(actor, "SETTLE_SALES"),
+		canManage: hasPermission(actor, "MANAGE_SALES"),
 	};
 }

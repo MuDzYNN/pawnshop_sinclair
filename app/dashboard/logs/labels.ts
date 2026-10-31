@@ -26,6 +26,8 @@ export const actionLabels: Record<AuditAction, string> = {
 	SALE_COMPLETED: "Zapisano sprzedaż PostOP",
 	SALE_SETTLED: "Rozliczono sprzedaż PostOP",
 	SALE_REOPENED: "Cofnięto rozliczenie sprzedaży",
+	SALE_UPDATED: "Edytowano sprzedaż PostOP",
+	SALE_DELETED: "Usunięto sprzedaż PostOP",
 	LOGIN: "Logowanie",
 	LOGIN_DENIED: "Odrzucone logowanie",
 };
@@ -47,7 +49,13 @@ export const categories = {
 	buybacks: { label: "Skup", actions: ["BUYBACK_COMPLETED"] },
 	sales: {
 		label: "Sprzedaż PostOP",
-		actions: ["SALE_COMPLETED", "SALE_SETTLED", "SALE_REOPENED"],
+		actions: [
+			"SALE_COMPLETED",
+			"SALE_SETTLED",
+			"SALE_REOPENED",
+			"SALE_UPDATED",
+			"SALE_DELETED",
+		],
 	},
 	employees: {
 		label: "Pracownicy",
@@ -88,6 +96,8 @@ const fieldLabels: Record<string, string> = {
 	enabled: "Włączony",
 	result: "Wynik",
 	pieces: "Liczba sztuk",
+	lines: "Przedmioty",
+	status: "Status",
 	payout: "Wypłata",
 	bonus: "Bonus",
 	profit: "Zysk",
@@ -103,6 +113,11 @@ const priceFields = new Set([
 	"value",
 ]);
 
+const saleStatuses: Record<string, string> = {
+	PENDING: "oczekuje",
+	SETTLED: "rozliczona",
+};
+
 const webhookResults: Record<string, string> = {
 	sent: "wysłano",
 	failed: "błąd Discorda",
@@ -115,6 +130,8 @@ export function formatValue(field: string, value: unknown) {
 	if (value === null || value === "") return "—";
 	if (priceFields.has(field)) return formatPrice(value as number);
 	if (typeof value === "boolean") return value ? "tak" : "nie";
+	if (field === "status")
+		return saleStatuses[value as string] ?? String(value);
 	if (field === "result")
 		return webhookResults[value as string] ?? String(value);
 	if (field === "permissions") {

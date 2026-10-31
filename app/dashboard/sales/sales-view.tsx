@@ -344,6 +344,7 @@ export function SalesView({
 			<SaleDetails
 				sale={selected}
 				canSettle={!!data?.canSettle}
+				canManage={!!data?.canManage}
 				onClose={() => setSelectedId(null)}
 			/>
 		</div>
