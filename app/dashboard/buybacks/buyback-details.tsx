@@ -91,9 +91,18 @@ export function BuybackDetails({
 										value={`+ ${formatPrice(buyback.bonus)}`}
 									/>
 								)}
+								{buyback.client && (
+									<Row
+										label={`Z salda: ${buyback.client.name}`}
+										value={`+ ${formatPrice(buyback.client.amount)}`}
+									/>
+								)}
 								<Row
 									label="Wypłacono klientowi"
-									value={formatPrice(buyback.payout)}
+									value={formatPrice(
+										buyback.payout +
+											(buyback.client?.amount ?? 0),
+									)}
 									className="py-1 text-base font-semibold"
 								/>
 								<Row

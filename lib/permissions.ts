@@ -18,6 +18,18 @@ export const permissions: {
 			"Podgląd transakcji skupu wszystkich pracowników, nie tylko własnych",
 	},
 	{
+		value: "USE_CLIENTS",
+		label: "Skup z klientem",
+		description:
+			"Wybór klienta przy skupie i dopłata ponad cennik z jego salda",
+	},
+	{
+		value: "MANAGE_CLIENTS",
+		label: "Zarządzanie klientami",
+		description:
+			"Dodawanie klientów, wpłaty, ręczne korekty salda i archiwizacja",
+	},
+	{
 		value: "CREATE_SALES",
 		label: "Nowa sprzedaż PostOP",
 		description: "Zapisywanie sprzedaży przedmiotów z magazynu do PostOP",

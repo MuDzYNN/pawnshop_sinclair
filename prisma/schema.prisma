@@ -89,6 +89,8 @@ enum Permission {
     SETTLE_SALES
     MANAGE_SALES
     VIEW_RESTRICTED_ITEMS
+    MANAGE_CLIENTS
+    USE_CLIENTS
 }
 
 model Rank {
@@ -105,20 +107,21 @@ model Rank {
 }
 
 model Employee {
-    id        String     @id @default(cuid())
-    discordId String     @unique
-    name      String
-    rankId    String
-    rank      Rank       @relation(fields: [rankId], references: [id])
-    active    Boolean    @default(true)
-    userId    String?    @unique
-    user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-    buybacks  Buyback[]
-    sales     Sale[]     @relation("SaleEmployee")
-    settled   Sale[]     @relation("SaleSettledBy")
-    auditLogs AuditLog[]
-    createdAt DateTime   @default(now())
-    updatedAt DateTime   @updatedAt
+    id            String        @id @default(cuid())
+    discordId     String        @unique
+    name          String
+    rankId        String
+    rank          Rank          @relation(fields: [rankId], references: [id])
+    active        Boolean       @default(true)
+    userId        String?       @unique
+    user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+    buybacks      Buyback[]
+    sales         Sale[]        @relation("SaleEmployee")
+    settled       Sale[]        @relation("SaleSettledBy")
+    clientEntries ClientEntry[]
+    auditLogs     AuditLog[]
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @updatedAt
 
     @@index([rankId])
     @@map("employee")
@@ -169,20 +172,23 @@ model IgnoredItem {
 }
 
 model Buyback {
-    id           String        @id @default(cuid())
-    number       String        @unique
-    employeeId   String
-    employee     Employee      @relation(fields: [employeeId], references: [id])
+    id            String        @id @default(cuid())
+    number        String        @unique
+    employeeId    String
+    employee      Employee      @relation(fields: [employeeId], references: [id])
     // Prices in whole dollars, bonusPercent in percent
-    bonusPercent Float
-    bonusAmount  Int           @default(0)
-    subtotal     Int
-    bonus        Int
-    payout       Int
-    saleValue    Int
-    profit       Int
-    lines        BuybackLine[]
-    createdAt    DateTime      @default(now())
+    bonusPercent  Float
+    bonusAmount   Int           @default(0)
+    subtotal      Int
+    bonus         Int
+    payout        Int
+    saleValue     Int
+    profit        Int
+    // Paid on top of payout from the client's balance, left out of profit
+    balancePayout Int           @default(0)
+    clientEntry   ClientEntry?
+    lines         BuybackLine[]
+    createdAt     DateTime      @default(now())
 
     @@index([employeeId])
     @@index([createdAt])
@@ -254,6 +260,52 @@ model SaleLine {
     @@map("sale_line")
 }
 
+model Client {
+    id        String        @id @default(cuid())
+    name      String
+    phone     String        @default("")
+    notes     String        @default("")
+    // Whole dollars still owed to the client
+    balance   Int           @default(0)
+    archived  Boolean       @default(false)
+    entries   ClientEntry[]
+    createdAt DateTime      @default(now())
+    updatedAt DateTime      @updatedAt
+
+    @@index([name])
+    @@map("client")
+}
+
+enum ClientEntryType {
+    DEPOSIT
+    BUYBACK
+    ADJUSTMENT
+}
+
+// Change of a client's balance
+model ClientEntry {
+    id                String          @id @default(cuid())
+    clientId          String
+    client            Client          @relation(fields: [clientId], references: [id])
+    employeeId        String
+    employee          Employee        @relation(fields: [employeeId], references: [id])
+    type              ClientEntryType
+    // Balance change in whole dollars, negative when paid out
+    amount            Int
+    // Cash brought in and the shop's cut, deposits only
+    deposit           Int             @default(0)
+    commissionPercent Float           @default(0)
+    commission        Int             @default(0)
+    buybackId         String?         @unique
+    buyback           Buyback?        @relation(fields: [buybackId], references: [id], onDelete: SetNull)
+    note              String          @default("")
+    createdAt         DateTime        @default(now())
+
+    @@index([clientId, createdAt])
+    @@index([employeeId])
+    @@map("client_entry")
+}
+
 enum WebhookEvent {
     CONTACT
     BUYBACK
@@ -294,6 +346,12 @@ enum AuditAction {
     SALE_REOPENED
     SALE_UPDATED
     SALE_DELETED
+    CLIENT_CREATED
+    CLIENT_UPDATED
+    CLIENT_ARCHIVED
+    CLIENT_RESTORED
+    CLIENT_DEPOSIT
+    CLIENT_ADJUSTED
     LOGIN
     LOGIN_DENIED
 }

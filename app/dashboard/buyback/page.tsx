@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { BuybackView } from "@/app/dashboard/buyback/buyback-view";
+import { getClientsData } from "@/app/dashboard/clients/data";
 import { getItemsData } from "@/app/dashboard/items/data";
 import { Skeleton } from "@/components/ui/skeleton";
+import { hasPermission } from "@/lib/permissions";
 import { requirePermission } from "@/lib/session";
 
 export default function BuybackPage() {
@@ -14,5 +16,9 @@ export default function BuybackPage() {
 
 async function Buyback() {
 	const employee = await requirePermission("CREATE_BUYBACKS");
-	return <BuybackView fallback={await getItemsData(employee)} />;
+	const [items, clients] = await Promise.all([
+		getItemsData(employee),
+		hasPermission(employee, "USE_CLIENTS") ? getClientsData() : null,
+	]);
+	return <BuybackView fallback={items} clientsFallback={clients} />;
 }

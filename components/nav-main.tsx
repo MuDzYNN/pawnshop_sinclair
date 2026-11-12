@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	ContactIcon,
 	EyeOffIcon,
 	HandCoinsIcon,
 	Link2Icon,
@@ -55,6 +56,12 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
 				title: "Transakcje",
 				url: "/dashboard/buybacks",
 				icon: ReceiptTextIcon,
+			},
+			{
+				title: "Klienci",
+				url: "/dashboard/clients",
+				icon: ContactIcon,
+				permission: "MANAGE_CLIENTS",
 			},
 		],
 	},

@@ -29,6 +29,16 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Combobox,
+	ComboboxContent,
+	ComboboxEmpty,
+	ComboboxInput,
+	ComboboxItem,
+	ComboboxList,
+	ComboboxTrigger,
+	ComboboxValue,
+} from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
 	InputGroup,
@@ -37,7 +47,7 @@ import {
 } from "@/components/ui/input-group";
 import { errorMessages } from "@/lib/errors";
 import { formatPrice } from "@/lib/format";
-import { keys, revalidateBuybacks } from "@/lib/swr";
+import { keys, revalidateBuybacks, revalidateClients } from "@/lib/swr";
 import { cn } from "@/lib/utils";
 
 export type Line = {
@@ -49,15 +59,21 @@ export type Line = {
 	quantity: number;
 };
 
+type Client = { id: string; name: string; balance: number };
+
 type Props = {
 	lines: Line[];
+	// Undefined for employees who can't pick a client
+	clients?: Client[];
 	onRemove: (id: string) => void;
 	onClear: () => void;
 };
 
-export function BuybackSummary({ lines, onRemove, onClear }: Props) {
+export function BuybackSummary({ lines, clients, onRemove, onClear }: Props) {
 	const [percentInput, setPercentInput] = useState("");
 	const [amountInput, setAmountInput] = useState("");
+	const [clientId, setClientId] = useState("");
+	const [totalInput, setTotalInput] = useState("");
 
 	const bonusInfo: Bonus = {
 		percent: Math.min(Math.max(toNumber(percentInput), 0), 100),
@@ -70,6 +86,13 @@ export function BuybackSummary({ lines, onRemove, onClear }: Props) {
 		lines,
 		bonusInfo,
 	);
+	const client = clients?.find((client) => client.id === clientId);
+	// Whatever the client gets above the payout comes from their balance
+	const balancePayout = client
+		? Math.max(Math.trunc(toNumber(totalInput)) - payout, 0)
+		: 0;
+	const overdrawn = !!client && balancePayout > client.balance;
+	const total = payout + balancePayout;
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const [pending, startTransition] = useTransition();
 
@@ -77,6 +100,8 @@ export function BuybackSummary({ lines, onRemove, onClear }: Props) {
 		onClear();
 		setPercentInput("");
 		setAmountInput("");
+		setClientId("");
+		setTotalInput("");
 	}
 
 	function complete() {
@@ -89,14 +114,24 @@ export function BuybackSummary({ lines, onRemove, onClear }: Props) {
 				})),
 				bonus: bonusInfo,
 				payout,
+				client:
+					client && balancePayout
+						? { id: client.id, amount: balancePayout }
+						: undefined,
 			});
 			if (result.error) {
 				toast.error(errorMessages[result.error]);
 				if (result.error === "PRICES_CHANGED") mutate(keys.items);
+				if (
+					result.error === "BALANCE_TOO_LOW" ||
+					result.error === "CLIENT_NOT_FOUND"
+				)
+					revalidateClients();
 				return;
 			}
 			toast.success(`Zapisano transakcję ${result.number}`);
 			revalidateBuybacks();
+			if (balancePayout) revalidateClients();
 			if (result.webhookFailed) {
 				toast.warning("Nie udało się wysłać rozliczenia na Discord");
 			}
@@ -212,6 +247,86 @@ export function BuybackSummary({ lines, onRemove, onClear }: Props) {
 						</InputGroup>
 					</div>
 				</Field>
+				{clients && (
+					<Field orientation="horizontal" className="justify-between">
+						<FieldLabel htmlFor="client">Klient</FieldLabel>
+						<div className="flex items-center gap-1">
+							{client && (
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									onClick={() => setClientId("")}
+								>
+									<XIcon />
+									<span className="sr-only">Bez klienta</span>
+								</Button>
+							)}
+							<Combobox
+								items={clients}
+								value={client ?? null}
+								onValueChange={(client) =>
+									setClientId(client?.id ?? "")
+								}
+								itemToStringLabel={(client) => client.name}
+								isItemEqualToValue={(a, b) => a.id === b.id}
+							>
+								<ComboboxTrigger
+									id="client"
+									render={
+										<Button
+											variant="outline"
+											className="w-56 justify-between font-normal"
+										/>
+									}
+								>
+									<ComboboxValue placeholder="Bez klienta" />
+								</ComboboxTrigger>
+								<ComboboxContent>
+									<ComboboxInput
+										showTrigger={false}
+										placeholder="Wyszukaj..."
+									/>
+									<ComboboxEmpty>Nie znaleziono klienta</ComboboxEmpty>
+									<ComboboxList>
+										{(client: Client) => (
+											<ComboboxItem key={client.id} value={client}>
+												<span className="flex-1 truncate">
+													{client.name}
+												</span>
+												<span className="text-muted-foreground tabular-nums">
+													{formatPrice(client.balance)}
+												</span>
+											</ComboboxItem>
+										)}
+									</ComboboxList>
+								</ComboboxContent>
+							</Combobox>
+						</div>
+					</Field>
+				)}
+				{client && (
+					<Field
+						orientation="horizontal"
+						className="justify-between"
+						data-invalid={overdrawn}
+					>
+						<FieldLabel htmlFor="total">Wypłać łącznie</FieldLabel>
+						<InputGroup className="w-36">
+							<InputGroupInput
+								id="total"
+								inputMode="numeric"
+								placeholder={String(payout)}
+								className="text-right tabular-nums"
+								aria-invalid={overdrawn}
+								value={totalInput}
+								onChange={(e) => setTotalInput(e.target.value)}
+							/>
+							<InputGroupAddon align="inline-end">
+								$
+							</InputGroupAddon>
+						</InputGroup>
+					</Field>
+				)}
 			</CardContent>
 			<CardFooter className="flex-col items-stretch gap-1 tabular-nums">
 				<Row label="Wartość skupu" value={formatPrice(subtotal)} />
@@ -219,6 +334,13 @@ export function BuybackSummary({ lines, onRemove, onClear }: Props) {
 					<Row
 						label={`Bonus (${formatBonus(bonusInfo.percent, bonusInfo.amount, formatPrice)})`}
 						value={`+ ${formatPrice(bonus)}`}
+					/>
+				)}
+				{client && balancePayout > 0 && (
+					<Row
+						label={`Z salda klienta (ma ${formatPrice(client.balance)})`}
+						value={`+ ${formatPrice(balancePayout)}`}
+						className={cn(overdrawn && "text-destructive")}
 					/>
 				)}
 				<Row
@@ -232,12 +354,12 @@ export function BuybackSummary({ lines, onRemove, onClear }: Props) {
 				/>
 				<Row
 					label="Do wypłaty klientowi"
-					value={formatPrice(payout)}
+					value={formatPrice(total)}
 					className="py-1 text-lg font-semibold"
 				/>
 				<Button
 					className="mt-2"
-					disabled={!lines.length || pending}
+					disabled={!lines.length || overdrawn || pending}
 					onClick={() => setConfirmOpen(true)}
 				>
 					<CheckIcon />
@@ -248,10 +370,13 @@ export function BuybackSummary({ lines, onRemove, onClear }: Props) {
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>
-							Zatwierdzić skup za {formatPrice(payout)}?
+							Zatwierdzić skup za {formatPrice(total)}?
 						</AlertDialogTitle>
 						<AlertDialogDescription>
 							Transakcja zostanie zapisana i wysłana na Discord.
+							{client &&
+								balancePayout > 0 &&
+								` Z salda klienta ${client.name} zejdzie ${formatPrice(balancePayout)}.`}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

@@ -7,13 +7,25 @@ import {
 } from "@/app/dashboard/buyback/buyback-summary";
 import { InventoryImport } from "@/app/dashboard/buyback/inventory-import";
 import { ItemPicker, useQuantities } from "@/app/dashboard/buyback/item-picker";
+import type { ClientsData } from "@/app/dashboard/clients/data";
 import type { ItemsData } from "@/app/dashboard/items/data";
 import { keys } from "@/lib/swr";
 
-export function BuybackView({ fallback }: { fallback: ItemsData }) {
+export function BuybackView({
+	fallback,
+	clientsFallback,
+}: {
+	fallback: ItemsData;
+	clientsFallback: ClientsData | null;
+}) {
 	const { data = fallback } = useSWR<ItemsData>(keys.items, {
 		fallbackData: fallback,
 	});
+	// Only employees allowed to pick a client get the list
+	const { data: clientsData } = useSWR<ClientsData>(
+		clientsFallback && keys.clients,
+		{ fallbackData: clientsFallback ?? undefined },
+	);
 	const { quantities, setQuantity, addQuantities, cleared, clear } =
 		useQuantities();
 
@@ -42,6 +54,9 @@ export function BuybackView({ fallback }: { fallback: ItemsData }) {
 				</div>
 				<BuybackSummary
 					lines={lines}
+					clients={clientsData?.clients.filter(
+						(client) => !client.archived,
+					)}
 					onRemove={(id) => setQuantity(id, 0)}
 					onClear={clear}
 				/>

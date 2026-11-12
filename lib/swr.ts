@@ -11,6 +11,7 @@ export const keys = {
 	logs: "/api/dashboard/logs",
 	sales: "/api/dashboard/sales",
 	overview: "/api/dashboard/overview",
+	clients: "/api/dashboard/clients",
 } as const;
 
 // Rank changes also affect the employee list
@@ -40,6 +41,13 @@ export function revalidateBuybacks() {
 export function revalidateSales() {
 	channel?.postMessage("sales");
 	return mutate(isSalesKey);
+}
+
+// Client list and each client's history
+export function revalidateClients() {
+	return mutate(
+		(key) => typeof key === "string" && key.startsWith(keys.clients),
+	);
 }
 
 export class FetchError extends Error {

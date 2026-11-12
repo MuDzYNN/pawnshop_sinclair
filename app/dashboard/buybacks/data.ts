@@ -79,8 +79,10 @@ export async function getBuybacksData(
 				payout: true,
 				saleValue: true,
 				profit: true,
+				balancePayout: true,
 				createdAt: true,
 				employee: { select: { name: true } },
+				clientEntry: { select: { client: { select: { name: true } } } },
 				lines: {
 					select: {
 						id: true,
@@ -100,9 +102,18 @@ export async function getBuybacksData(
 		}),
 	]);
 
+	// Client payouts stay hidden from employees without client permissions
+	const showClients =
+		hasPermission(actor, "USE_CLIENTS") ||
+		hasPermission(actor, "MANAGE_CLIENTS");
+
 	return {
-		buybacks: buybacks.map((buyback) => ({
+		buybacks: buybacks.map(({ balancePayout, clientEntry, ...buyback }) => ({
 			...buyback,
+			client:
+				showClients && clientEntry
+					? { name: clientEntry.client.name, amount: balancePayout }
+					: null,
 			createdAt: buyback.createdAt.toISOString(),
 		})),
 		total,

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { transactionNumber, warsawParts } from "@/app/dashboard/buyback/number";
 import { calculateTotals, formatBonus } from "@/app/dashboard/buyback/totals";
+import { changeBalance } from "@/app/dashboard/clients/balance";
 import { audit } from "@/lib/audit";
 import type { ErrorCode } from "@/lib/errors";
 import { hasPermission, visibleItems } from "@/lib/permissions";
@@ -36,6 +37,13 @@ const buybackSchema = z.object({
 	}),
 	// Payout shown to the employee, rejected if prices changed since
 	payout: z.number().int(),
+	// Paid on top of the payout from the client's balance
+	client: z
+		.object({
+			id: z.string(),
+			amount: z.number().int().min(1).max(100_000_000),
+		})
+		.optional(),
 });
 
 export type BuybackInput = z.infer<typeof buybackSchema>;
@@ -50,7 +58,9 @@ export async function completeBuyback(
 		return { error: "BUYBACKS_FORBIDDEN" };
 	const parsed = buybackSchema.safeParse(input);
 	if (!parsed.success) return { error: "BUYBACK_INVALID" };
-	const { bonus } = parsed.data;
+	const { bonus, client } = parsed.data;
+	if (client && !hasPermission(employee, "USE_CLIENTS"))
+		return { error: "CLIENTS_FORBIDDEN" };
 
 	const items = await prisma.item.findMany({
 		where: {
@@ -74,32 +84,60 @@ export async function completeBuyback(
 	const { year, month, day, hour, minute, second } = warsawParts(now);
 	const number = transactionNumber(now, employee.name);
 
-	const buyback = await prisma.buyback.create({
-		data: {
-			number,
-			employeeId: employee.id,
-			bonusPercent: bonus.percent,
-			bonusAmount: bonus.amount,
-			subtotal: totals.subtotal,
-			bonus: totals.bonus,
-			payout: totals.payout,
-			saleValue: totals.saleValue,
-			profit: totals.profit,
-			createdAt: now,
-			lines: {
-				create: lines.map(
-					({ id, name, note, quantity, buyPrice, sellPrice }) => ({
-						itemId: id,
-						name,
-						note,
-						quantity,
-						buyPrice,
-						sellPrice,
-					}),
-				),
+	if (client) {
+		const exists = await prisma.client.count({
+			where: { id: client.id, archived: false },
+		});
+		if (!exists) return { error: "CLIENT_NOT_FOUND" };
+	}
+
+	const result = await prisma.$transaction(async (tx) => {
+		const balance = client
+			? await changeBalance(tx, client.id, -client.amount)
+			: null;
+		if (client && !balance) return null;
+		const buyback = await tx.buyback.create({
+			data: {
+				number,
+				employeeId: employee.id,
+				bonusPercent: bonus.percent,
+				bonusAmount: bonus.amount,
+				subtotal: totals.subtotal,
+				bonus: totals.bonus,
+				payout: totals.payout,
+				saleValue: totals.saleValue,
+				profit: totals.profit,
+				balancePayout: client?.amount ?? 0,
+				createdAt: now,
+				lines: {
+					create: lines.map(
+						({ id, name, note, quantity, buyPrice, sellPrice }) => ({
+							itemId: id,
+							name,
+							note,
+							quantity,
+							buyPrice,
+							sellPrice,
+						}),
+					),
+				},
+				...(client && {
+					clientEntry: {
+						create: {
+							clientId: client.id,
+							employeeId: employee.id,
+							type: "BUYBACK",
+							amount: -client.amount,
+							createdAt: now,
+						},
+					},
+				}),
 			},
-		},
+		});
+		return { buyback, balance };
 	});
+	if (!result) return { error: "BALANCE_TOO_LOW" };
+	const { buyback, balance } = result;
 
 	await audit(employee, [
 		{
@@ -111,6 +149,10 @@ export async function completeBuyback(
 				payout: [null, totals.payout],
 				bonus: [null, totals.bonus],
 				profit: [null, totals.profit],
+				...(client && {
+					client: [null, balance!.name],
+					balancePayout: [null, client.amount],
+				}),
 			},
 		},
 	]);

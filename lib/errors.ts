@@ -45,6 +45,17 @@ export const errorMessages = {
 	PRICES_CHANGED:
 		"Cennik zmienił się w międzyczasie, sprawdź transakcję jeszcze raz",
 
+	CLIENTS_FORBIDDEN: "Brak uprawnień do zarządzania klientami",
+	CLIENT_NAME_REQUIRED: "Podaj imię i nazwisko",
+	CLIENT_NAME_TOO_LONG: "Maksymalnie 80 znaków",
+	CLIENT_PHONE_TOO_LONG: "Maksymalnie 20 znaków",
+	CLIENT_NOTES_TOO_LONG: "Notatki mogą mieć maksymalnie 1000 znaków",
+	CLIENT_NOT_FOUND: "Nie znaleziono klienta albo jest zarchiwizowany",
+	AMOUNT_INVALID: "Podaj kwotę w pełnych dolarach",
+	COMMISSION_INVALID: "Prowizja musi być od 0 do 100%",
+	ADJUSTMENT_NOTE_REQUIRED: "Podaj powód korekty",
+	BALANCE_TOO_LOW: "Klient nie ma tyle na saldzie",
+
 	SALES_FORBIDDEN: "Brak uprawnień do sprzedaży PostOP",
 	SALE_INVALID: "Nieprawidłowa sprzedaż, sprawdź ilości",
 	SALE_NOT_FOUND: "Nie znaleziono sprzedaży",

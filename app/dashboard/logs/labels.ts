@@ -28,6 +28,12 @@ export const actionLabels: Record<AuditAction, string> = {
 	SALE_REOPENED: "Cofnięto rozliczenie sprzedaży",
 	SALE_UPDATED: "Edytowano sprzedaż PostOP",
 	SALE_DELETED: "Usunięto sprzedaż PostOP",
+	CLIENT_CREATED: "Dodano klienta",
+	CLIENT_UPDATED: "Edytowano klienta",
+	CLIENT_ARCHIVED: "Zarchiwizowano klienta",
+	CLIENT_RESTORED: "Przywrócono klienta",
+	CLIENT_DEPOSIT: "Wpłata klienta",
+	CLIENT_ADJUSTED: "Korekta salda klienta",
 	LOGIN: "Logowanie",
 	LOGIN_DENIED: "Odrzucone logowanie",
 };
@@ -55,6 +61,17 @@ export const categories = {
 			"SALE_REOPENED",
 			"SALE_UPDATED",
 			"SALE_DELETED",
+		],
+	},
+	clients: {
+		label: "Klienci",
+		actions: [
+			"CLIENT_CREATED",
+			"CLIENT_UPDATED",
+			"CLIENT_ARCHIVED",
+			"CLIENT_RESTORED",
+			"CLIENT_DEPOSIT",
+			"CLIENT_ADJUSTED",
 		],
 	},
 	employees: {
@@ -102,6 +119,15 @@ const fieldLabels: Record<string, string> = {
 	bonus: "Bonus",
 	profit: "Zysk",
 	value: "Wartość",
+	phone: "Telefon",
+	notes: "Notatki",
+	client: "Klient",
+	balance: "Saldo",
+	balancePayout: "Z salda klienta",
+	amount: "Kwota",
+	deposit: "Wpłacona gotówka",
+	commission: "Prowizja",
+	commissionPercent: "Prowizja (%)",
 };
 
 const priceFields = new Set([
@@ -111,6 +137,11 @@ const priceFields = new Set([
 	"bonus",
 	"profit",
 	"value",
+	"balance",
+	"balancePayout",
+	"amount",
+	"deposit",
+	"commission",
 ]);
 
 const saleStatuses: Record<string, string> = {
